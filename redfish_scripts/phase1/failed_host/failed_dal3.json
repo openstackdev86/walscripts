@@ -1,1 +1,0 @@
-{"hosts": {"cloud_name": "dal3", "data": [{"host": "dal-appblx049-09.prod.walmart.com", "reason": "ValueError"}, {"host": "dal-appblx033-07.prod.walmart.com", "reason": "ValueError"}]}}
