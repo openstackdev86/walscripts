@@ -1,0 +1,231 @@
+#Script details
+
+#Script will collect Fan,Disk and over all health status from ILO using multiprocessing.
+
+# usages
+#------------
+# python .py <cloud-name> [ tested with dal2 ]
+import json
+import pdb
+import threading
+import redfish
+import sys
+import os
+import signal
+import requests
+from redfish.rest.v1 import InvalidCredentialsError,ServerDownOrUnreachableError,RetriesExhaustedError
+import logging
+import multiprocessing
+from concurrent import futures
+from concurrent import *
+from concurrent.futures import TimeoutError,wait,as_completed
+
+class Hardware(object):
+    
+    def __init__(self,hosts,queue,cloud_name):
+        self.hosts = hosts
+        self.username = "walmart"
+        self.password = "Ch@ngeM@y2017"
+        self.prefix = "/redfish/v1"
+        self.queue = queue
+        self.cloud_name = cloud_name
+        global return_out
+        global failed_data
+
+    def done(self,fu):
+        if fu.cancelled():
+            print("cancelled")
+        elif fu.done():
+            print("done")
+        
+    def create_process(self):
+        jobs = []
+        return_out = []
+        data_dict=[]
+        cloud_data = []
+        f_data = []
+        failed_host = [] 
+        failed_data = {}
+        running_host = []
+        print len(self.hosts)
+        #with futures.ThreadPoolExecutor(max_workers=len(self.hosts)) as executor:
+        #ex = futures.ThreadPoolExecutor(max_workers=len(self.hosts))
+        ex = futures.ThreadPoolExecutor(max_workers=len(self.hosts))
+        for i in self.hosts:           
+            f_data.append(ex.submit(self.getredfishobject,i,data_dict,failed_host))
+            #with futures.ThreadPoolExecutor(max_workers=200) as check_executor:
+            #    out = [y for y in f_data if y.running()]
+            #    print(len(out))
+        for k in f_data:
+            try:
+                k.result(timeout=2)
+            except TimeoutError:
+                print("timeout for the host %s"%(threading.current_thread().name))
+                out = [x for x in f_data if x.running()]
+                print("getting the ruuning threads %s"%(len(out)))
+                out[0].set_exception("timeout")
+        print("start shutown")
+        print len(data_dict)
+        print len(failed_host) 
+        d = {}
+        d['system_health'] = {"cloud_name":self.cloud_name,"data":data_dict}
+        cloud_json = self.cloud_name+'.json'
+        json.dump(d, file('/app/monitor/ilo_scripts/phase2/output_json/test_output/'+cloud_json, 'w'))
+        pid= os.getpid()
+        print pid
+        ex.shutdown(wait=False)
+        os.kill(pid, signal.SIGHUP)
+    
+    def getredfishobject(self,hostname,data_dict,failed_host):
+        try:
+            print("getting object for hostanme %s"%(hostname))
+            #print("getting thread name")
+            threading.current_thread().setName(hostname)
+            print(threading.current_thread().name)
+            redfishobject = redfish.redfish_client(base_url=hostname,username=self.username,password=self.password, 
+                                            default_prefix=self.prefix)
+            if redfishobject:
+                redfishobject.login(auth="session")
+                print("Got redfish handler for hostname %s"%(hostname))
+                resources = self.getresources(redfishobject)
+                res = self.searchfortype(redfishobject,resources,res_type="ComputerSystem.")
+                system_result = self.getsystemhealth(redfishobject,res,hostname)
+                data_dict.append(system_result)
+                redfishobject.logout()
+            else:
+                print("error with multiprocess") 
+                failed_host.append(hostname)
+        
+        except RetriesExhaustedError:
+            print("Retries exhausted...for hostname %s"%(hostname))
+            failed_host.append(hostname)
+        except InvalidCredentialsError:
+            print("inavlid credentials for host %s"%(hostname))
+            failed_host.append(hostname)
+        except ServerDownOrUnreachableError:
+            print("server down %s"%(hostname))
+            failed_host.append(hostname)
+
+    def getdiskhealth(self,redfishobject,hostname,disk_type=None):
+        
+        response = redfishobject.get("/redfish/v1/Systems/1/SmartStorage/ArrayControllers/", None)
+        if response.dict['Members@odata.count'] == 0:
+            print("no disk found for the host",hostname)
+            return False
+        else:
+            output = response.dict['Members']
+            for i in output:
+                array_control = i['@odata.id']
+                print("getting disk for hostname %s under %s"%(array_control,hostname)) 
+                res = redfishobject.get(array_control)
+                drive_data = res.dict
+                if disk_type == 'physical':
+                    physical_drive = redfishobject.get(drive_data['Links']['PhysicalDrives']['@odata.id'])
+                    physical_data  = physical_drive.dict
+                    disk_data = self.parse_data(physical_data,hostname,redfishobject,disk_type="physical")
+                elif disk_type == 'logical':
+                    logical_drive = redfishobject.get(drive_data['Links']['LogicalDrives']['@odata.id'])
+                    logical_data = logical_drive.dict
+                    disk_data = self.parse_data(logical_data,hostname,redfishobject,disk_type="logical")
+                else:
+                    print(" no drive found")
+
+            return disk_data
+
+    def parse_data(self,disk_data,hostname,redfishobject,disk_type):
+        disk_dict = {}
+        disk_f = {} 
+        disk_result = []
+        for y in xrange(0,len(disk_data['Members'])):
+
+            data = redfishobject.get(disk_data['Members'][y]['@odata.id'])
+            if disk_type == 'logical':
+                disk_dict[data.dict['Name']+str(data.dict['Id'])] = {'disk_drive_count':data.dict.get('Id'),'drive_status':data.dict.get('Status'),
+                      'capacity(GB)':data.dict.get('CapacityMiB')/1024,'Raid':data.dict.get('Raid'),'Logical Drive_number':data.dict.get('LogicalDriveNumber')}
+            
+            elif disk_type == 'physical':
+                disk_dict[data.dict['Name']+str(data.dict['Id'])] = {'disk_drive_count':data.dict.get('Id'),'drive_status':data.dict.get('Status'),
+                      'media_type':data.dict.get('MediaType'),'capacity(GB)':data.dict.get('CapacityMiB')/1024,'Disk_location':data.dict.get('Location')}
+            else:
+                print("no disk found")
+
+        disk_result.append(disk_dict)
+        return disk_result
+
+
+    def getsystemhealth(self,redfishobject,res,hostname):
+        output = []
+        system_data = redfishobject.get(res[0])
+        system_data_dict = system_data.dict
+        data = {}
+        firmware_version = redfishobject.get("/redfish/v1/Systems/1/FirmwareInventory/", None)
+        thermal_data = redfishobject.get("/redfish/v1/Chassis/1/Thermal/")
+        
+        if not system_data_dict['HostName']:
+                                                      #if hostname is missing from ilo
+            t_hostname = ""
+            tmp_hostname = hostname.lstrip('https://')
+            t_hostname = tmp_hostname.rstrip('-ilo.prod.walmart.com')
+            #data[t_hostname] = {"Bios_version":system_data_dict['BiosVersion'],"Power_state":system_data_dict['PowerState'],"Processors":[system_data_dict['ProcessorSummary']],"manufacturer":system_data_dict['Manufacturer'],"model":system_data_dict['Model'],"health":system_data_dict['Status'],"Memory_status":system_data_dict['MemorySummary'],"Fans":thermal_data.dict['Fans'],"ilo_version":firmware_version.dict["Current"]["SystemBMC"][0]["VersionString"],"Disk_Health":{"physical_disk":self.getdiskhealth(redfishobject,t_hostname,disk_type="physical"),"logical_disk":self.getdiskhealth(redfishobject,t_hostname,disk_type="logical")}}
+            try:
+                     
+                data[t_hostname] = {"Bios_version":system_data_dict.get('BiosVersion'),"Power_state":system_data_dict.get('PowerState'),
+                                    "Processors":[system_data_dict.get('ProcessorSummary')],"manufacturer":system_data_dict.get('Manufacturer'),
+                                    "model":system_data_dict.get('Model'),"health":system_data_dict.get('Status'),"Memory_status":system_data_dict.get('MemorySummary'),
+                                    "Fans":thermal_data.dict.get('Fans'),"ilo_version":firmware_version.dict["Current"]["SystemBMC"][0]["VersionString"],
+                                    "Disk_Health":{"physical_disk":self.getdiskhealth(redfishobject,t_hostname,disk_type="physical"),
+                                    "logical_disk":self.getdiskhealth(redfishobject,t_hostname,disk_type="logical")}}        
+            except ValueError,ex:
+                print("host %s not having exact info %s"%(t_hostname,ex))
+                return data            
+
+        else:
+               
+            #data[system_data_dict['HostName']] = {"Bios_version":system_data_dict['BiosVersion'],"Power_state":system_data_dict['PowerState'],"Processors":[system_data_dict['ProcessorSummary']],"manufacturer":system_data_dict['Manufacturer'],"model":system_data_dict['Model'],"health":system_data_dict['Status'],"Memory_status":system_data_dict['MemorySummary'],"Fans":thermal_data.dict['Fans'],"ilo_version":firmware_version.dict["Current"]["SystemBMC"][0]["VersionString"],"Disk_Health":{"physical_disk":self.getdiskhealth(redfishobject,system_data_dict['HostName'],disk_type="physical"),"logical_disk":self.getdiskhealth(redfishobject,system_data_dict['HostName'],disk_type="logical")}}
+            try:
+                
+                data[system_data_dict['HostName']] = {"Bios_version":system_data_dict.get('BiosVersion'),"Power_state":system_data_dict.get('PowerState'),
+                                                      "Processors":[system_data_dict.get('ProcessorSummary')],"manufacturer":system_data_dict.get('Manufacturer'),
+                                                      "model":system_data_dict.get('Model'),"health":system_data_dict.get('Status'),"Memory_status":system_data_dict.get('MemorySummary'),
+                                                      "Fans":thermal_data.dict.get('Fans'),"ilo_version":firmware_version.dict["Current"]["SystemBMC"][0]["VersionString"],
+                                                      "Disk_Health":{"physical_disk":self.getdiskhealth(redfishobject,system_data_dict['HostName'],disk_type="physical"),
+                                                      "logical_disk":self.getdiskhealth(redfishobject,system_data_dict['HostName'],disk_type="logical")}}  
+            except ValueError,ex:
+
+                print("host %s not having exact info %s"%(system_data_dict['HostName'],ex))
+                return data
+  
+        return data
+
+    def getresources(self,redfishobject):
+        response = redfishobject.get("/redfish/v1/resourcedirectory/", None)
+        resources = response.dict["Instances"]
+        return resources
+
+    def searchfortype(self,redfishobject,resources,res_type):
+        data = []
+        
+        for x in resources:
+            if '@odata.type' in x and 'ComputerSystem.' in x['@odata.type']:
+                data.append(x.get('@odata.id'))
+                
+        return data
+
+if __name__ == "__main__":
+    multiprocessing.log_to_stderr()
+    logger = multiprocessing.get_logger()
+    logger.setLevel(logging.INFO)
+    queue = multiprocessing.Queue()
+    cloud_name = sys.argv[1]
+    with open("/app/monitor/ilo_scripts/hvs/hvs-"+cloud_name+".json") as f:
+        get_hv = json.load(f)
+        hosts = get_hv.get('hypervisors').get('hvs')
+        host_list = ["https://dal-appblx113-30-ilo.prod.walmart.com","https://dal-appblx056-08-ilo.prod.walmart.com","https://dal-appblx058-08-ilo.prod.walmart.com"]
+        #hosts.remove('https://dal-appblx113-30-ilo.prod.walmart.com')
+        #hosts.remove('https://dal-appblx113-21-ilo.prod.walmart.com')
+        #hosts.remove('https://dal-appblx125-04-ilo.prod.walmart.com')
+        cloud = get_hv.get('hypervisors').get('cloud')
+        pdb.set_trace()
+        #hard = Hardware(hosts[0:4],queue,cloud)
+        hard = Hardware(host_list,queue,cloud)
+        hard.create_process()

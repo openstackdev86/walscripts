@@ -1,0 +1,56 @@
+collecting temperature for dfwstg2 cloud
+28
+getting object for hostanme https://dfw-appblx007-01-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx007-27-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx046-01-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx046-27-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx079-02-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx079-24-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx080-02-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx080-24-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx081-02-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx081-24-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx082-02-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx082-24-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx084-01-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx084-27-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx085-01-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx085-27-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx087-01-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx087-27-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx088-01-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx088-27-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx113-01-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx113-30-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx114-01-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx114-30-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx116-01-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx116-30-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx117-01-ilo.prod.walmart.com
+getting object for hostanme https://dfw-appblx117-30-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx084-01-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx082-24-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx082-02-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx081-24-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx046-01-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx079-24-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx080-24-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx046-27-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx079-02-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx116-01-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx114-30-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx085-27-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx117-01-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx007-27-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx113-01-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx081-02-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx084-27-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx113-30-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx114-01-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx117-30-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx087-27-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx085-01-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx088-27-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx116-30-ilo.prod.walmart.com
+Got redfish handler for hostname https://dfw-appblx080-02-ilo.prod.walmart.com
+Got r
